@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Smell Detector</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .code-container {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px auto;
+            max-width: 95%;
+        }
+        .code-box {
+            width: 48%;
+            height: 300px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            padding: 10px;
+            overflow: scroll;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Code Smell Detector</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+        <label for="codeFile">Upload File:</label>
+        <input type="file" id="codeFile" name="codeFile" accept=".cpp, .java, .py">
+    </form>
+    <div>
+        <button class="button" id="longMethod" onclick="detectLongMethod()">Long Method/Function</button>
+        <button class="button" id="longParameterList" onclick="detectLongParameter()">Long Parameter List</button>
+        <button class="button" id="duplicatedCode" onclick="detectDuplicateCode()">Duplicated Code</button>
+    </div>
+    <div class="code-container">
+        <div class="code-box" id="uploadedCodeBox">Uploaded code will be displayed here...</div>
+        <div class="code-box" id="resultCodeBox">Result will be displayed here...</div>
+    </div>
+    <script>
+        document.getElementById('codeFile').addEventListener('change', uploadFile);
+        function uploadFile() {
+            const fileInput = document.getElementById('codeFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('uploadedCodeBox').textContent = event.target.result;
+                };
+                reader.readAsText(file);
+            } else {
+                alert('Please select a file.');
+            }
+        }
+
+        function detectLongMethod() {
+            const fileInput = document.getElementById('codeFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('codeFile', file);
+                fetch('/detect_long_method', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(result => {
+                    document.getElementById('resultCodeBox').textContent = result;
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('Please select a file.');
+            }
+        }
+
+        function detectLongParameter() {
+            const fileInput = document.getElementById('codeFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('codeFile', file);
+                fetch('/detect_long_parameter', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(result => {
+                    document.getElementById('resultCodeBox').textContent = result;
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('Please select a file.');
+            }
+        }
+
+        function detectDuplicateCode() {
+            const fileInput = document.getElementById('codeFile');
+            const file = fileInput.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('codeFile', file);
+                fetch('/detect_duplicate_code', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(result => {
+                    document.getElementById('resultCodeBox').textContent = result;
+                })
+                .catch(error => console.error('Error:', error));
+            } else {
+                alert('Please select a file.');
+            }
+        }
+    </script>
+</body>
+</html>
