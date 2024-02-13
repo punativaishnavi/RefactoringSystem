@@ -1,6 +1,7 @@
 # Main.py
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import re
+from collections import defaultdict
 
 app = Flask(__name__, template_folder='templates')
 
@@ -46,7 +47,6 @@ def detect_long_parameter():
     return "No file uploaded."
 
 
-
 # Function to detect long method
 def long_method(content):
     functions = {}
@@ -60,31 +60,81 @@ def long_method(content):
                 current_function = None
             else:
                 functions[current_function] += 1
-        elif any(line.strip().startswith(kw) for kw in ['void', 'int', 'float', 'double', 'char', 'bool']):  # Simplified detection
-            if '(' in line and ')' in line:  # Found a function start
+        elif any(line.strip().startswith(kw) for kw in
+                 ['void', 'int', 'float', 'double', 'char', 'bool']):
+            if '(' in line and ')' in line:
                 function_name = line.split('(')[0].split()[-1]
                 current_function = function_name
-                functions[current_function] = 1  # Start counting lines for this function
+                functions[current_function] = 1
     return functions
 
 
 # Function to detect long parameter
 def long_parameter(content):
-    # Regex pattern to match function definitions
     pattern = r'(\w+\s+\w+)\s*\(([^)]*)\)'
     matches = re.findall(pattern, content)
     long_methods = []
-
     for match in matches:
-        # Extract the function name and parameters
         function_name, parameters = match
-        # Split parameters on comma, filter out empty strings and count them
         param_count = len([param for param in parameters.split(',') if param])
-        # Check if the parameter count exceeds the threshold
         if param_count > 3:
             long_methods.append((function_name, param_count))
-
     return long_methods
+
+
+# Work in Progress
+def jaccard_similarity(set1, set2):
+    intersection = len(set1.intersection(set2))
+    union = len(set1.union(set2))
+    return intersection / union if union else 0
+
+
+def extract_functions_from_code(code_content):
+    function_pattern = re.compile(r'\b\w+\s+(\w+)\s*\((.*?)\)\s*\{([\s\S]*?)\}', re.MULTILINE)
+    return function_pattern.findall(code_content)
+
+
+def normalize_code(code):
+    # Normalize variable names and literals for better structural comparison
+    code = re.sub(r'\b(int|float|double|char|void|bool)\b', 'type', code)  # Normalize types
+    code = re.sub(r'\bfor\b', 'loop', code)  # Normalize loops
+    code = re.sub(r'".*?"', '"literal"', code)  # Normalize string literals
+    code = re.sub(r'\b\d+\b', 'number', code)  # Normalize numbers
+    return code
+
+
+def tokenize_function_code(function_code):
+    function_code = normalize_code(function_code)  # Normalize the code before tokenizing
+    return set(re.findall(r'\b\w+\b', function_code))
+
+
+def duplicate_code(functions):
+    duplicate_scores = defaultdict(list)
+    for i, (func1_name, func1_params, func1_body) in enumerate(functions):
+        tokens1 = tokenize_function_code(func1_name + ' ' + func1_params + ' ' + func1_body)
+        for j, (func2_name, func2_params, func2_body) in enumerate(functions):
+            if i != j:
+                tokens2 = tokenize_function_code(func2_name + ' ' + func2_params + ' ' + func2_body)
+                score = jaccard_similarity(tokens1, tokens2)
+                if score >= 0.75:
+                    rounded_score = round(score, 2)
+                    duplicate_scores[f"{func1_name}({func1_params})"].append((f"{func2_name}({func2_params})", rounded_score))
+
+    return duplicate_scores
+
+
+@app.route('/detect_duplicate_code', methods=['POST'])
+def detect_duplicate_code():
+    file = request.files.get('codeFile')
+    if file:
+        content = file.read().decode('utf-8')
+        functions = extract_functions_from_code(content)
+        duplicate_scores = duplicate_code(functions)
+        if duplicate_scores:
+            results = {func: duplicates for func, duplicates in duplicate_scores.items()}
+            return jsonify(results)
+        return jsonify({"message": "No duplicate code detected."})
+    return jsonify({"error": "No file uploaded."})
 
 
 if __name__ == "__main__":
